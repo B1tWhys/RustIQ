@@ -10,6 +10,7 @@ dependencies = [
  "flume",
  "num-complex",
  "rustradio",
+ "tempfile",
 ]
 
 [[package]]
