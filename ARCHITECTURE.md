@@ -8,7 +8,8 @@ RustIQ is an SDR (Software Defined Radio) receiver application similar to GQRX, 
 
 - Cross-platform SDR receiver (Linux + macOS)
 - Clean separation between UI and backend to enable future web deployment
-- V1: Waterfall display + AM demodulation
+- V1.0: Waterfall display only (no UI control, no audio)
+- V1.1+: AM demodulation, UI controls for frequency/gain
 - Future: FM, other modulation types, web UI with TCP streaming
 
 ## Hardware Support
@@ -101,7 +102,32 @@ src/
 - `ui`: Only exposes the app entry point. Internals are private.
 - `engine` and `ui` both depend on `messages`, but never on each other
 
-## Message Types (Draft)
+## Message Types
+
+### V1.0 (Waterfall Only)
+
+Engine auto-starts on launch. No UI control, no audio.
+
+```rust
+// Frontend → Backend
+enum Command {
+    // Empty for v1.0
+}
+
+// Backend → Frontend
+enum Event {
+    StateSnapshot(EngineState),
+    SpectrumData(Vec<f32>),
+}
+
+struct EngineState {
+    center_frequency: u64,
+    sample_rate: u32,
+    fft_size: usize,
+}
+```
+
+### Future Additions
 
 ```rust
 // Frontend → Backend
@@ -113,15 +139,14 @@ enum Command {
     Stop,
 }
 
-// Backend → Frontend
+// Backend → Frontend (additional events)
 enum Event {
-    StateSnapshot(EngineState),
+    // ... v1.0 events plus:
     FrequencyChanged(u64),
     GainChanged(f32),
     DemodModeChanged(DemodMode),
-    SpectrumData(Vec<f32>),
     AudioChunk(Vec<f32>),
-    DeviceStatus(Status),
+    DeviceStatus(DeviceStatus),
 }
 ```
 
