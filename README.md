@@ -1,5 +1,7 @@
 # RustIQ
 
+[![CI](https://github.com/B1tWhys/RustIQ/actions/workflows/ci.yaml/badge.svg)](https://github.com/B1tWhys/RustIQ/actions/workflows/ci.yaml)
+
 A cross-platform SDR (Software Defined Radio) receiver application, similar to GQRX but built on [rustradio](https://github.com/ThomasHabets/rustradio) instead of GNU Radio.
 
 ## Features (Planned)
@@ -25,6 +27,3 @@ cargo run --release
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for design decisions and module structure.
 
-## License
-
-TBD

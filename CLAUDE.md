@@ -16,6 +16,10 @@ cargo test            # Run all tests
 cargo test <name>     # Run specific test
 ```
 
+## Development Workflow
+
+This project uses trunk-based development. Always work on a feature branch and submit changes via pull request to `main`.
+
 ## Architecture
 
 The application has three main modules with strict boundaries:
