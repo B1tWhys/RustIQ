@@ -4,9 +4,9 @@
 - [x] Add dependencies: egui/eframe, flume, rustradio, num-complex
 
 ## 2. GitHub Actions CI
-- [ ] Lint workflow (cargo fmt --check, cargo clippy)
-- [ ] Test workflow (cargo test)
-- [ ] Build check (cargo build)
+- [x] Lint workflow (cargo fmt --check, cargo clippy)
+- [x] Test workflow (cargo test)
+- [x] Build check (cargo build)
 
 ## 3. Messages Module
 - [ ] Define `Command` enum (empty for v1.0)
