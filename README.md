@@ -27,6 +27,3 @@ cargo run --release
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for design decisions and module structure.
 
-## License
-
-TBD

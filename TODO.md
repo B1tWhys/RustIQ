@@ -9,9 +9,10 @@
 - [x] Build check (cargo build)
 
 ## 3. Messages Module
-- [ ] Define `Command` enum (empty for v1.0)
-- [ ] Define `Event` enum (`StateSnapshot`, `SpectrumData`)
-- [ ] Define `EngineState` struct
+- [x] Define `Command` enum
+- [x] Define `Event` enum (`StateSnapshot`, `SpectrumData`)
+- [x] Define `EngineState` struct
+- [x] Define `Hertz` unit type
 
 ## 4. Engine Module
 - [ ] `SampleSource` trait
