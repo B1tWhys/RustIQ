@@ -78,15 +78,15 @@ src/
 │   ├── mod.rs           # pub types: Command, Event, EngineState
 │   ├── command.rs
 │   ├── event.rs
-│   └── state.rs
+│   ├── state.rs
+│   └── units.rs
 ├── engine/
-│   ├── mod.rs           # pub: Engine::new(), Engine::run(), channel handles
-│   ├── sdr.rs           # RTL-SDR interface (private)
-│   ├── dsp.rs           # rustradio pipeline (private)
-│   ├── demod/
-│   │   ├── mod.rs
-│   │   └── am.rs        # AM demodulator (private)
-│   └── spectrum.rs      # FFT computation (private)
+│   ├── mod.rs           # pub: Engine::new(), Engine::run()
+│   ├── graph.rs         # RustRadio graph construction (private)
+│   └── sinks/
+│       ├── mod.rs
+│       ├── spectrum.rs  # SpectrumSink - emits SpectrumData events (private)
+│       └── audio.rs     # AudioSink - emits AudioChunk events (future, private)
 └── ui/
     ├── mod.rs           # pub: App::new(), run entrypoint
     ├── state.rs         # local state derived from events (private)
@@ -98,9 +98,11 @@ src/
 ### Boundary Rules
 
 - `messages`: All types are `pub` - this is the contract between frontend and backend
-- `engine`: Only exposes constructor and channel handles. Internals are private.
+- `engine`: Only exposes `Engine::new()` and `Engine::run()`. All RustRadio implementation details (graphs, blocks, streams) are private.
 - `ui`: Only exposes the app entry point. Internals are private.
 - `engine` and `ui` both depend on `messages`, but never on each other
+
+See [ENGINE_ARCHITECTURE.md](ENGINE_ARCHITECTURE.md) for detailed engine implementation using RustRadio.
 
 ## Message Types
 
@@ -154,35 +156,34 @@ enum Event {
 
 ### Boundary Tests (`tests/` directory)
 
-Primary testing approach - test at module boundaries:
+Primary testing approach - test at module boundaries through public APIs:
 
-- **Engine tests**: Mock SDR input (provide known IQ data), verify demodulated audio output
-- **UI tests**: Mock channel (inject Events), verify UI state/snapshots via egui_kittest or similar
+- **Engine tests**: Construct `Engine` via public API, spawn in thread, verify Events received on flume channel
+  - Use RustRadio's `SignalSource` (pure tones) for predictable FFT output
+  - Validate SpectrumData events match expected frequency peaks
+  - Tests interact only through the public boundary (Commands in, Events out)
 
-### Unit Tests (inline `#[cfg(test)]`)
+- **UI tests** (future): Inject Events via mock channel, verify UI state/snapshots via egui_kittest or similar
+  - Tests interact only through the UI's event consumer boundary
 
-Secondary - only for complex DSP logic where fine-grained testing adds value.
+### Signal Sources for Testing
 
-### SDR Abstraction for Testing
+RustRadio provides built-in source blocks - no custom test abstractions needed:
+- **`SignalSource`**: Generate pure sine waves (e.g., 10 kHz tone) - ideal for verifying FFT correctness
+- **`FileSource`**: Read recorded IQ data from disk - for testing with real-world signals
+- **`RtlSdrSource`**: Read from RTL-SDR hardware - production use
 
-```rust
-trait SampleSource {
-    fn read_samples(&mut self, buf: &mut [Complex<f32>]) -> Result<usize>;
-}
-```
+See [ENGINE_ARCHITECTURE.md](ENGINE_ARCHITECTURE.md) for detailed testing examples.
 
-- Production: RTL-SDR implementation
-- Tests: Mock that emits known signals (pure tones, pre-recorded IQ data)
-
-## Dependencies (Planned)
+## Dependencies
 
 | Crate | Purpose |
 |-------|---------|
-| rustradio | DSP pipeline and signal processing |
-| rtlsdr (TBD) | RTL-SDR hardware interface |
-| egui + eframe | GUI framework |
-| cpal | Audio output (in frontend) |
-| flume | Channel communication |
+| rustradio | DSP pipeline and signal processing (includes RTL-SDR support via `rtlsdr` feature) |
+| eframe | GUI framework (includes egui) |
+| flume | Channel communication between engine and UI |
+| num-complex | Complex number types for IQ samples |
+| cpal (future) | Audio output (in frontend) |
 
 ## Future Considerations
 
