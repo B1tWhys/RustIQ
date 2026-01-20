@@ -1,16 +1,23 @@
 use rustiq::{
     engine::Engine,
-    messages::{Command, SourceConfig},
+    messages::{Command, Hertz, SourceConfig},
     ui,
 };
+use std::path::PathBuf;
 
 fn main() -> anyhow::Result<()> {
     // Create flume channels for bidirectional communication
     let (cmd_tx, cmd_rx) = flume::unbounded();
     let (event_tx, event_rx) = flume::unbounded();
 
-    // Create source configuration (default: signal generator)
-    let source_config = SourceConfig::default();
+    // Parse CLI arguments - if a file path is provided, use FileSource
+    let source_config = std::env::args()
+        .nth(1)
+        .map(|path| SourceConfig::File {
+            path: PathBuf::from(path),
+            sample_rate: Hertz(3_200_000), // 3.2 MHz sample rate
+        })
+        .unwrap_or_default();
 
     // Spawn engine thread
     let engine_handle = std::thread::spawn(move || {
