@@ -1,9 +1,38 @@
 use flume;
-use std::thread;
+use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
-use RustIQ::engine::Engine;
-use RustIQ::messages::{Command, Event, Hertz};
+use rustiq::engine::Engine;
+use rustiq::messages::{Command, Event, Hertz};
+
+// Test helpers to reduce boilerplate
+
+fn setup_engine() -> (
+    flume::Sender<Command>,
+    flume::Receiver<Event>,
+    JoinHandle<anyhow::Result<()>>,
+) {
+    let (cmd_tx, cmd_rx) = flume::unbounded::<Command>();
+    let (event_tx, event_rx) = flume::unbounded::<Event>();
+
+    let handle = thread::spawn(move || {
+        let engine = Engine::new(cmd_rx, event_tx);
+        engine.run()
+    });
+
+    (cmd_tx, event_rx, handle)
+}
+
+fn teardown_engine(cmd_tx: flume::Sender<Command>, handle: JoinHandle<anyhow::Result<()>>) {
+    cmd_tx.send(Command::Stop).unwrap();
+    let _ = handle.join();
+}
+
+fn skip_state_snapshot(event_rx: &flume::Receiver<Event>) {
+    event_rx
+        .recv_timeout(Duration::from_secs(2))
+        .expect("Should receive StateSnapshot");
+}
 
 #[test]
 fn test_engine_construction() {
@@ -21,18 +50,10 @@ fn test_engine_construction() {
 
 #[test]
 fn test_engine_sends_state_snapshot() {
-    // Create channels
-    let (_cmd_tx, cmd_rx) = flume::unbounded::<Command>();
-    let (event_tx, event_rx) = flume::unbounded::<Event>();
+    let (cmd_tx, event_rx, handle) = setup_engine();
 
-    // Create and run engine in background thread
-    let handle = thread::spawn(move || {
-        let engine = Engine::new(cmd_rx, event_tx);
-        engine.run()
-    });
-
-    // Wait for and verify first event is StateSnapshot
-    let first_event = event_rx.recv_timeout(Duration::from_secs(2))
+    let first_event = event_rx
+        .recv_timeout(Duration::from_secs(2))
         .expect("Should receive StateSnapshot");
 
     match first_event {
@@ -44,28 +65,14 @@ fn test_engine_sends_state_snapshot() {
         _ => panic!("First event should be StateSnapshot, got {:?}", first_event),
     }
 
-    // Cleanup: drop receiver to stop engine
-    drop(event_rx);
-    let _ = handle.join();
+    teardown_engine(cmd_tx, handle);
 }
 
 #[test]
 fn test_engine_sends_spectrum_data() {
-    // Create channels
-    let (_cmd_tx, cmd_rx) = flume::unbounded::<Command>();
-    let (event_tx, event_rx) = flume::unbounded::<Event>();
+    let (cmd_tx, event_rx, handle) = setup_engine();
+    skip_state_snapshot(&event_rx);
 
-    // Create and run engine in background thread
-    let handle = thread::spawn(move || {
-        let engine = Engine::new(cmd_rx, event_tx);
-        engine.run()
-    });
-
-    // Skip the initial StateSnapshot
-    let _state_snapshot = event_rx.recv_timeout(Duration::from_secs(2))
-        .expect("Should receive StateSnapshot");
-
-    // Verify we receive SpectrumData events
     let mut spectrum_count = 0;
     for _ in 0..5 {
         match event_rx.recv_timeout(Duration::from_secs(2)) {
@@ -83,31 +90,51 @@ fn test_engine_sends_spectrum_data() {
     }
 
     assert_eq!(spectrum_count, 5, "Should receive 5 SpectrumData events");
-
-    // Cleanup
-    drop(event_rx);
-    let _ = handle.join();
+    teardown_engine(cmd_tx, handle);
 }
 
 #[test]
 fn test_engine_runs_without_panic() {
-    // Create channels
-    let (_cmd_tx, cmd_rx) = flume::unbounded::<Command>();
-    let (event_tx, event_rx) = flume::unbounded::<Event>();
+    let (cmd_tx, event_rx, handle) = setup_engine();
 
-    // Create and run engine
-    let handle = thread::spawn(move || {
-        let engine = Engine::new(cmd_rx, event_tx);
-        engine.run()
-    });
-
-    // Let it run briefly
     thread::sleep(Duration::from_millis(100));
-
-    // Cleanup - dropping event_rx should cause engine to terminate
     drop(event_rx);
 
-    // Engine should finish without panicking
+    cmd_tx.send(Command::Stop).unwrap();
     let result = handle.join();
     assert!(result.is_ok(), "Engine thread should not panic");
+}
+
+#[test]
+fn test_fft_shows_peak_at_10khz() {
+    let (cmd_tx, event_rx, handle) = setup_engine();
+    skip_state_snapshot(&event_rx);
+
+    let spectrum_data = match event_rx.recv_timeout(Duration::from_secs(2)) {
+        Ok(Event::SpectrumData(data)) => data,
+        Ok(other) => panic!("Expected SpectrumData, got {:?}", other),
+        Err(e) => panic!("Failed to receive SpectrumData: {:?}", e),
+    };
+
+    let (max_bin_idx, _max_value) = spectrum_data
+        .iter()
+        .enumerate()
+        .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+        .expect("Spectrum should not be empty");
+
+    let sample_rate = 48_000.0;
+    let fft_size = 4096.0;
+    let peak_frequency = (max_bin_idx as f32) * sample_rate / fft_size;
+
+    let expected_frequency = 10_000.0;
+    let tolerance = 100.0;
+    assert!(
+        (peak_frequency - expected_frequency).abs() < tolerance,
+        "Peak frequency {:.1} Hz should be within {} Hz of {} Hz",
+        peak_frequency,
+        tolerance,
+        expected_frequency
+    );
+
+    teardown_engine(cmd_tx, handle);
 }
