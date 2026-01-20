@@ -1,6 +1,7 @@
 use super::EngineState;
 
 /// Events sent from the engine to the UI.
+#[derive(Debug)]
 pub enum Event {
     /// Initial state snapshot sent on connection.
     StateSnapshot(EngineState),

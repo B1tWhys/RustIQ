@@ -39,4 +39,4 @@ Audio samples flow through the protocol layer as `AudioChunk` events - cpal live
 - **Boundary tests** (`tests/` directory): Mock SDR input for engine tests, mock channels for UI tests
 - **Unit tests** (inline `#[cfg(test)]`): Only for complex DSP logic
 
-See ARCHITECTURE.md for detailed design decisions.
+See docs/ARCHITECTURE.md for detailed design decisions.

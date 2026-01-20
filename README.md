@@ -25,5 +25,5 @@ cargo run --release
 
 ## Architecture
 
-See [ARCHITECTURE.md](ARCHITECTURE.md) for design decisions and module structure.
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for design decisions and module structure.
 
