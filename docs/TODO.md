@@ -66,13 +66,13 @@
 ## 5. Engine Module - Add FFT Processing
 
 ### 5.1 Add FFT to Graph
-- [ ] Update `build_graph()` to insert FFT block between SignalSource and SpectrumSink
+- [x] Update `build_graph()` to insert FFT block between SignalSource and SpectrumSink
   - Research which rustradio FFT block to use
   - Configure FFT size (4096)
   - Connect: SignalSource → FFT → SpectrumSink
 
 ### 5.2 Test: Verify FFT Output
-- [ ] Write test: verify FFT shows peak at 10 kHz
+- [x] Write test: verify FFT shows peak at 10 kHz
   - Receive SpectrumData event
   - Find peak bin in spectrum
   - Calculate frequency of peak (bin_index * sample_rate / fft_size)

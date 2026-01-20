@@ -12,22 +12,24 @@ pub struct SpectrumSink {
     #[rustradio(in)]
     src: ReadStream<f32>,
     event_tx: Sender<Event>,
+    fft_size: usize,
 }
 
 impl Block for SpectrumSink {
-    fn work(&mut self) -> Result<BlockRet, Error> {
+    fn work(&mut self) -> Result<BlockRet<'_>, Error> {
         let (input, _tags) = self.src.read_buf()?;
 
-        if input.is_empty() {
-            return Ok(BlockRet::Noop);
+        // Wait until we have at least one FFT frame
+        if input.len() < self.fft_size {
+            return Ok(BlockRet::Pending);
         }
 
-        let n = input.len();
+        // Only process one FFT frame at a time
+        let n = self.fft_size;
 
         // Convert to owned Vec and send via channel
-        let mut spectrum_data = Vec::with_capacity(size_of::<f32>() * n);
-        input.iter().for_each(|i: &f32| spectrum_data.push(*i));
-        
+        let spectrum_data: Vec<f32> = input.iter().take(n).copied().collect();
+
         // Use try_send to avoid blocking the DSP pipeline
         match self.event_tx.try_send(Event::SpectrumData(spectrum_data)) {
             Ok(_) => {},
@@ -37,13 +39,13 @@ impl Block for SpectrumSink {
             }
             Err(flume::TrySendError::Disconnected(_)) => {
                 // UI has disconnected, terminate the engine
-                return Err(Error::new("Event channel disconnected"));
+                return Ok(BlockRet::EOF);
             }
         }
 
-        // Consume all input samples
+        // Consume the FFT frame
         input.consume(n);
 
-        Ok(BlockRet::Ok)
+        Ok(BlockRet::Again)
     }
 }
