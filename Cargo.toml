@@ -7,7 +7,7 @@ edition = "2024"
 anyhow = "1.0"
 eframe = "0.30"
 flume = "0.11"
-rustradio = "0.8"
+rustradio = "0.15"
 num-complex = "0.4"
 
 [dev-dependencies]

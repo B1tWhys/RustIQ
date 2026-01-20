@@ -1072,6 +1072,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "fast-math"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2465292146cdfc2011350fe3b1c616ac83cf0faeedb33463ba1c332ed8948d66"
+dependencies = [
+ "ieee754",
+]
+
+[[package]]
 name = "fastrand"
 version = "2.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1084,6 +1093,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1e6853b52649d4ac5c0bd02320cddc5ba956bdb407c4b75a2c6b75bf51500f8c"
 dependencies = [
  "simd-adler32",
+]
+
+[[package]]
+name = "filetime"
+version = "0.2.27"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f98844151eee8917efc50bd9e8318cb963ae8b297431495d3f758616ea5c57db"
+dependencies = [
+ "cfg-if",
+ "libc",
+ "libredox",
 ]
 
 [[package]]
@@ -1542,6 +1562,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "ieee754"
+version = "0.2.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9007da9cacbd3e6343da136e98b0d2df013f553d35bdec8b518f07bea768e19c"
+
+[[package]]
 name = "image"
 version = "0.25.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1571,6 +1597,15 @@ checksum = "7714e70437a7dc3ac8eb7e6f8df75fd8eb422675fc7678aff7364301092b1017"
 dependencies = [
  "equivalent",
  "hashbrown 0.16.1",
+]
+
+[[package]]
+name = "itertools"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "413ee7dfc52ee1a4949ceeb7dbc8a33f2d6c088194d9f922fb8318faf1f01186"
+dependencies = [
+ "either",
 ]
 
 [[package]]
@@ -2578,12 +2613,13 @@ dependencies = [
 
 [[package]]
 name = "rustradio"
-version = "0.8.2"
+version = "0.15.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "73e840dba77e16635c3498ca28a69ec6e7bbb741f27ca0dbc257cd4aa34edb0c"
+checksum = "b41d0265fa3da9e48e5b50495c2068baf9d1dd95fec988c7015990bfca239e81"
 dependencies = [
- "anyhow",
- "errno",
+ "async-trait",
+ "fast-math",
+ "itertools",
  "libc",
  "log",
  "num-complex",
@@ -2592,16 +2628,30 @@ dependencies = [
  "rustradio_macros",
  "serde",
  "serde_json",
+ "sha2",
+ "tar",
  "tempfile",
+ "thiserror 2.0.17",
 ]
 
 [[package]]
 name = "rustradio_macros"
-version = "0.8.2"
+version = "0.15.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "497b75a84c627efc98075391d03b92640441c0578bcb7de6937693b6634334a1"
+checksum = "1221c11cb118a52505a66a7050fe9ba1d30af5bcf24a57e32ada42b3cbff37b6"
 dependencies = [
- "paste",
+ "proc-macro2",
+ "quote",
+ "rustradio_macros_code",
+ "syn",
+]
+
+[[package]]
+name = "rustradio_macros_code"
+version = "0.15.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "492941985202257242990d69b3bbeccb1a64b2f78349f0e04fd5d45aa3b85c2d"
+dependencies = [
  "proc-macro2",
  "quote",
  "syn",
@@ -2706,6 +2756,17 @@ name = "sha1"
 version = "0.10.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e3bf829a2d51ab4a5ddf1352d8470c140cadc8301b2ae1789db023f01cedd6ba"
+dependencies = [
+ "cfg-if",
+ "cpufeatures",
+ "digest",
+]
+
+[[package]]
+name = "sha2"
+version = "0.10.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a7507d819769d01a365ab707794a4084392c824f54a7a6a7862f8c3d0892b283"
 dependencies = [
  "cfg-if",
  "cpufeatures",
@@ -2889,6 +2950,17 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "tar"
+version = "0.4.44"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1d863878d212c87a19c1a610eb53bb01fe12951c0501cf5a0d65f724914a667a"
+dependencies = [
+ "filetime",
+ "libc",
+ "xattr",
 ]
 
 [[package]]
@@ -3931,6 +4003,16 @@ name = "x11rb-protocol"
 version = "0.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ea6fc2961e4ef194dcbfe56bb845534d0dc8098940c7e5c012a258bfec6701bd"
+
+[[package]]
+name = "xattr"
+version = "1.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "32e45ad4206f6d2479085147f02bc2ef834ac85886624a23575ae137c8aa8156"
+dependencies = [
+ "libc",
+ "rustix 1.1.3",
+]
 
 [[package]]
 name = "xcursor"
