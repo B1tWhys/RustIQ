@@ -15,7 +15,7 @@ pub struct Engine {
     graph: Graph,
     cmd_rx: Receiver<Command>,
     event_tx: Sender<Event>,
-    pub cancellation_token: CancellationToken,
+    cancellation_token: CancellationToken,
 }
 
 impl Engine {
