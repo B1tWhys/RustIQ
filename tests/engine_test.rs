@@ -3,7 +3,7 @@ use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
 use rustiq::engine::Engine;
-use rustiq::messages::{Command, Event, Hertz};
+use rustiq::messages::{Command, Event, Hertz, SourceConfig};
 
 // Test helpers to reduce boilerplate
 
@@ -16,7 +16,7 @@ fn setup_engine() -> (
     let (event_tx, event_rx) = flume::unbounded::<Event>();
 
     let handle = thread::spawn(move || {
-        let engine = Engine::new(cmd_rx, event_tx);
+        let engine = Engine::new(cmd_rx, event_tx, SourceConfig::default());
         engine.run()
     });
 
@@ -41,7 +41,7 @@ fn test_engine_construction() {
     let (event_tx, event_rx) = flume::unbounded::<Event>();
 
     // Construct engine - should not panic
-    let _engine = Engine::new(cmd_rx, event_tx);
+    let _engine = Engine::new(cmd_rx, event_tx, SourceConfig::default());
 
     // Cleanup
     drop(cmd_tx);

@@ -7,7 +7,7 @@ use rustradio::graph::{CancellationToken, Graph, GraphRunner};
 use std::thread;
 use std::time::Duration;
 
-use crate::messages::{Command, EngineState, Event, Hertz};
+use crate::messages::{Command, EngineState, Event, Hertz, SourceConfig};
 
 /// The SDR engine backend.
 /// Owns the rustradio graph and processes commands from the UI.
@@ -16,18 +16,24 @@ pub struct Engine {
     cmd_rx: Receiver<Command>,
     event_tx: Sender<Event>,
     cancellation_token: CancellationToken,
+    sample_rate: Hertz,
 }
 
 impl Engine {
     /// Create a new Engine instance.
-    pub fn new(cmd_rx: Receiver<Command>, event_tx: Sender<Event>) -> Self {
-        let graph = graph::build_graph(event_tx.clone());
+    pub fn new(
+        cmd_rx: Receiver<Command>,
+        event_tx: Sender<Event>,
+        source_config: SourceConfig,
+    ) -> Self {
+        let (graph, sample_rate_hz) = graph::build_graph(event_tx.clone(), source_config);
         let token = graph.cancel_token();
         Self {
             graph,
             cmd_rx,
             event_tx,
             cancellation_token: token,
+            sample_rate: Hertz(sample_rate_hz),
         }
     }
 
@@ -38,7 +44,7 @@ impl Engine {
         // Send initial state snapshot
         let initial_state = EngineState {
             center_frequency: Hertz(0),
-            sample_rate: Hertz(48_000),
+            sample_rate: self.sample_rate,
             fft_size: 4096,
         };
         self.event_tx.send(Event::StateSnapshot(initial_state))?;
