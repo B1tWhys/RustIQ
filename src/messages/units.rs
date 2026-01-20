@@ -2,6 +2,12 @@
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Hertz(pub u64);
 
+impl std::fmt::Display for Hertz {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} Hz", self.0)
+    }
+}
+
 impl Hertz {
     pub const fn khz(khz: u64) -> Self {
         Self(khz * 1_000)
