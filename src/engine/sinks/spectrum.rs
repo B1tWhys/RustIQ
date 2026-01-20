@@ -32,7 +32,7 @@ impl Block for SpectrumSink {
 
         // Use try_send to avoid blocking the DSP pipeline
         match self.event_tx.try_send(Event::SpectrumData(spectrum_data)) {
-            Ok(_) => {},
+            Ok(_) => {}
             Err(flume::TrySendError::Full(_)) => {
                 // Channel full - UI is busy
                 eprintln!("Warning: Event channel full, dropping spectrum frame");

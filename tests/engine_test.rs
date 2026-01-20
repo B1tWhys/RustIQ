@@ -2,12 +2,16 @@ use flume;
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
-use RustIQ::engine::Engine;
-use RustIQ::messages::{Command, Event, Hertz};
+use rustiq::engine::Engine;
+use rustiq::messages::{Command, Event, Hertz};
 
 // Test helpers to reduce boilerplate
 
-fn setup_engine() -> (flume::Sender<Command>, flume::Receiver<Event>, JoinHandle<anyhow::Result<()>>) {
+fn setup_engine() -> (
+    flume::Sender<Command>,
+    flume::Receiver<Event>,
+    JoinHandle<anyhow::Result<()>>,
+) {
     let (cmd_tx, cmd_rx) = flume::unbounded::<Command>();
     let (event_tx, event_rx) = flume::unbounded::<Event>();
 
@@ -25,7 +29,8 @@ fn teardown_engine(cmd_tx: flume::Sender<Command>, handle: JoinHandle<anyhow::Re
 }
 
 fn skip_state_snapshot(event_rx: &flume::Receiver<Event>) {
-    event_rx.recv_timeout(Duration::from_secs(2))
+    event_rx
+        .recv_timeout(Duration::from_secs(2))
         .expect("Should receive StateSnapshot");
 }
 
@@ -47,7 +52,8 @@ fn test_engine_construction() {
 fn test_engine_sends_state_snapshot() {
     let (cmd_tx, event_rx, handle) = setup_engine();
 
-    let first_event = event_rx.recv_timeout(Duration::from_secs(2))
+    let first_event = event_rx
+        .recv_timeout(Duration::from_secs(2))
         .expect("Should receive StateSnapshot");
 
     match first_event {

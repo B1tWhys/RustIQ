@@ -3,18 +3,6 @@
 version = 4
 
 [[package]]
-name = "RustIQ"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "eframe",
- "flume",
- "num-complex",
- "rustradio",
- "tempfile",
-]
-
-[[package]]
 name = "ab_glyph"
 version = "0.2.32"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2583,6 +2571,18 @@ dependencies = [
  "primal-check",
  "strength_reduce",
  "transpose",
+]
+
+[[package]]
+name = "rustiq"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "eframe",
+ "flume",
+ "num-complex",
+ "rustradio",
+ "tempfile",
 ]
 
 [[package]]
