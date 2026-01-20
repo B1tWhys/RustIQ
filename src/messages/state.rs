@@ -1,6 +1,7 @@
 use super::Hertz;
 
 /// Current state of the SDR engine.
+#[derive(Debug)]
 pub struct EngineState {
     /// Center frequency
     pub center_frequency: Hertz,
