@@ -79,16 +79,16 @@
   - Assert peak is within 100 Hz of 10 kHz
 
 ## 6. UI Module
-- [ ] eframe app scaffolding in `ui/mod.rs`
-- [ ] Implement event receiver loop (poll event_rx, update local state)
-- [ ] Waterfall widget in `ui/waterfall.rs` (scrolling spectrogram display)
-- [ ] Wire waterfall to display SpectrumData events
+- [x] eframe app scaffolding in `ui/mod.rs`
+- [x] Implement event receiver loop (poll event_rx, update local state)
+- [x] Waterfall widget in `ui/waterfall.rs` (scrolling spectrogram display)
+- [x] Wire waterfall to display SpectrumData events
 
 ## 7. Main Entrypoint
-- [ ] Create flume channels in `main.rs`
-- [ ] Construct `Engine` with channels
-- [ ] Spawn engine thread with `std::thread::spawn(|| engine.run())`
-- [ ] Create and run UI on main thread
+- [x] Create flume channels in `main.rs`
+- [x] Construct `Engine` with channels
+- [x] Spawn engine thread with `std::thread::spawn(|| engine.run())`
+- [x] Create and run UI on main thread
 
 ## 8. Manual Verification
 - [ ] Run application with `cargo run --release`
