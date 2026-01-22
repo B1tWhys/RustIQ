@@ -17,6 +17,10 @@ pub struct SpectrumSink {
 
 impl Block for SpectrumSink {
     fn work(&mut self) -> Result<BlockRet<'_>, Error> {
+        // if self.src.eof() {
+        //     return Ok(BlockRet::EOF);
+        // }
+
         let (input, _tags) = self.src.read_buf()?;
 
         // Wait until we have at least one FFT frame
@@ -27,20 +31,20 @@ impl Block for SpectrumSink {
         // Only process one FFT frame at a time
         let n = self.fft_size;
 
-        // Convert to owned Vec and send via channel
-        let spectrum_data: Vec<f32> = input.iter().take(n).copied().collect();
+        // Convert to owned Vec and apply FFT shift
+        let mut spectrum_data: Vec<f32> = input.iter().take(n).copied().collect();
 
-        // Use try_send to avoid blocking the DSP pipeline
-        match self.event_tx.try_send(Event::SpectrumData(spectrum_data)) {
-            Ok(_) => {}
-            Err(flume::TrySendError::Full(_)) => {
-                // Channel full - UI is busy
-                eprintln!("Warning: Event channel full, dropping spectrum frame");
-            }
-            Err(flume::TrySendError::Disconnected(_)) => {
-                // UI has disconnected, terminate the engine
-                return Ok(BlockRet::EOF);
-            }
+        // FFT shift: move DC from edges to center
+        // This rearranges [DC, positive, negative] -> [negative, DC, positive]
+        spectrum_data.rotate_left(n / 2);
+
+        // Block the pipeline to provide backpressure if the UI is behind
+        if self
+            .event_tx
+            .send(Event::SpectrumData(spectrum_data))
+            .is_err()
+        {
+            return Ok(BlockRet::EOF);
         }
 
         // Consume the FFT frame

@@ -8,7 +8,7 @@ use std::path::PathBuf;
 fn main() -> anyhow::Result<()> {
     // Create flume channels for bidirectional communication
     let (cmd_tx, cmd_rx) = flume::unbounded();
-    let (event_tx, event_rx) = flume::unbounded();
+    let (event_tx, event_rx) = flume::bounded(1); // flume::unbounded();
 
     // Parse CLI arguments - if a file path is provided, use FileSource
     let source_config = std::env::args()

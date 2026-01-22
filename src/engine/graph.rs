@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 
 use flume::Sender;
+use rustradio::Complex;
 use rustradio::blocks::{FftStream, FileSource, Map, SignalSourceComplex};
 use rustradio::graph::{Graph, GraphRunner};
 
@@ -26,7 +27,8 @@ pub fn build_graph(event_tx: Sender<Event>, source_config: SourceConfig) -> (Gra
             (prev, sample_rate.as_hz(), g)
         }
         SourceConfig::File { path, sample_rate } => {
-            let (file_source, prev) = FileSource::new(path).expect("Failed to open IQ file");
+            let (file_source, prev) =
+                FileSource::<Complex>::new(path).expect("Failed to open IQ file");
             let mut g = Graph::new();
             g.add(Box::new(file_source));
             (prev, sample_rate.as_hz(), g)

@@ -124,7 +124,9 @@ fn test_fft_shows_peak_at_10khz() {
 
     let sample_rate = 48_000.0;
     let fft_size = 4096.0;
-    let peak_frequency = (max_bin_idx as f32) * sample_rate / fft_size;
+    // Account for FFT shift: DC is at center (bin n/2), not at bin 0
+    // Bins map to frequencies: (bin_idx - n/2) * sample_rate / n
+    let peak_frequency = (max_bin_idx as f32 - fft_size / 2.0) * sample_rate / fft_size;
 
     let expected_frequency = 10_000.0;
     let tolerance = 100.0;
