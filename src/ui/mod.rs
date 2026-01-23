@@ -30,36 +30,32 @@ impl RustIqApp {
 impl eframe::App for RustIqApp {
     fn update(&mut self, ctx: &eframe::egui::Context, _frame: &mut eframe::Frame) {
         // 1. Process all pending events (non-blocking)
-        while let Ok(event) = self.event_rx.try_recv() {
+        if let Ok(event) = self.event_rx.try_recv() {
             self.state.handle_event(event);
-        }
 
-        // 2. Request continuous repaint (for streaming data)
-        ctx.request_repaint();
+            // Rate-limit repaints to 60 FPS when streaming, slow down when idle
+            ctx.request_repaint_after(std::time::Duration::from_millis(16));
+        } else {
+            ctx.request_repaint_after(std::time::Duration::from_millis(100));
+        }
 
         // 3. Render UI
         eframe::egui::CentralPanel::default().show(ctx, |ui| {
             if let Some(engine_state) = &self.state.engine_state {
                 // Display status
                 ui.label(format!(
-                    "Center: {} | Rate: {} | FFT: {} | Range: {:.1} to {:.1} dB",
+                    "Center: {} | Rate: {} | FFT: {} | DB Range: {} to {}",
                     engine_state.center_frequency,
                     engine_state.sample_rate,
                     engine_state.fft_size,
-                    self.state.min_db,
-                    self.state.max_db
+                    self.state.min_db.unwrap_or_default(),
+                    self.state.max_db.unwrap_or_default()
                 ));
 
                 ui.separator();
 
                 // Render waterfall
-                waterfall::render(
-                    ui,
-                    &self.state.waterfall_history,
-                    engine_state,
-                    self.state.min_db,
-                    self.state.max_db,
-                );
+                waterfall::render(ui, &self.state);
             } else {
                 ui.centered_and_justified(|ui| {
                     ui.label("Waiting for engine connection...");
