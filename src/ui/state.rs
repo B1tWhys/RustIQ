@@ -1,4 +1,4 @@
-use eframe::egui::{Color32, ColorImage};
+use eframe::egui::{Color32, ColorImage, TextureHandle};
 
 use crate::messages::{Decibels, EngineState, Event};
 use std::cell::Cell;
@@ -56,16 +56,20 @@ pub(super) struct UiState {
 
     /// Waterfall texture state (pre-computed pixels + GPU upload tracking)
     pub waterfall_texture: WaterfallTexture,
+
+    /// Cached texture handle to avoid re-uploading on every frame
+    pub waterfall_texture_handle: Option<TextureHandle>,
 }
 
 impl UiState {
     pub fn new() -> Self {
         Self {
             engine_state: None,
-            waterfall_max_lines: 4096, // ~10 seconds at 50 FPS
+            waterfall_max_lines: 1024,
             min_db: None,
             max_db: None,
             waterfall_texture: WaterfallTexture::new(),
+            waterfall_texture_handle: None,
         }
     }
 

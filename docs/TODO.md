@@ -96,8 +96,9 @@
 - [ ] Verify UI remains responsive
 
 ## Future: FileSource Support
-- [ ] Add configuration parameter to `build_graph()` for source type
-- [ ] Support `FileSource` for testing with recorded IQ data
+- [x] Add configuration parameter to `build_graph()` for source type
+- [x] Support `FileSource` for testing with recorded IQ data
+- [x] CLI argument support for IQ file input
 - [ ] Create/record test IQ files
 
 ## Future: RTL-SDR Support
