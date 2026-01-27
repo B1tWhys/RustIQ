@@ -2595,6 +2595,13 @@ dependencies = [
 [[package]]
 name = "rustiq"
 version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "flume",
+ "rustiq-engine",
+ "rustiq-messages",
+ "rustiq-ui",
+]
 
 [[package]]
 name = "rustiq-engine"
