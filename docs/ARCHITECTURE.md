@@ -69,38 +69,64 @@ RustIQ is an SDR (Software Defined Radio) receiver application similar to GQRX, 
 
 ## Module Structure
 
-Single crate with strong module boundaries:
+Cargo workspace with four separate crates:
 
 ```
-src/
-├── main.rs              # Startup, wires frontend + engine together
-├── messages/
-│   ├── mod.rs           # pub types: Command, Event, EngineState
-│   ├── command.rs
-│   ├── event.rs
-│   ├── state.rs
-│   └── units.rs
-├── engine/
-│   ├── mod.rs           # pub: Engine::new(), Engine::run()
-│   ├── graph.rs         # RustRadio graph construction (private)
-│   └── sinks/
-│       ├── mod.rs
-│       ├── spectrum.rs  # SpectrumSink - emits SpectrumData events (private)
-│       └── audio.rs     # AudioSink - emits AudioChunk events (future, private)
-└── ui/
-    ├── mod.rs           # pub: App::new(), run entrypoint
-    ├── state.rs         # local state derived from events (private)
-    ├── waterfall.rs     # waterfall widget (private)
-    ├── controls.rs      # frequency, gain, mode controls (private)
-    └── audio.rs         # cpal playback (private)
+rustiq/
+├── Cargo.toml                    # Workspace root
+├── rustiq-messages/              # Shared protocol library
+│   ├── Cargo.toml
+│   └── src/
+│       ├── lib.rs
+│       ├── command.rs
+│       ├── event.rs
+│       ├── state.rs
+│       └── units.rs
+├── rustiq-engine/                # Backend DSP library
+│   ├── Cargo.toml
+│   ├── src/
+│   │   ├── lib.rs              # pub: Engine::new(), Engine::run()
+│   │   ├── graph.rs            # RustRadio graph construction (private)
+│   │   └── sinks/
+│   │       ├── mod.rs
+│   │       ├── spectrum.rs     # SpectrumSink - emits SpectrumData events (private)
+│   │       └── audio.rs        # AudioSink - emits AudioChunk events (future, private)
+│   └── tests/
+│       └── engine_test.rs      # Integration tests for Engine public API
+├── rustiq-ui/                    # Frontend library
+│   ├── Cargo.toml
+│   └── src/
+│       ├── lib.rs              # pub: run() entrypoint
+│       ├── state.rs            # local state derived from events (private)
+│       ├── waterfall.rs        # waterfall widget (private)
+│       ├── controls.rs         # frequency, gain, mode controls (private)
+│       └── audio.rs            # cpal playback (private)
+└── rustiq/                       # Main binary
+    ├── Cargo.toml
+    └── src/
+        └── main.rs             # Startup, wires frontend + engine together
 ```
 
 ### Boundary Rules
 
-- `messages`: All types are `pub` - this is the contract between frontend and backend
-- `engine`: Only exposes `Engine::new()` and `Engine::run()`. All RustRadio implementation details (graphs, blocks, streams) are private.
-- `ui`: Only exposes the app entry point. Internals are private.
-- `engine` and `ui` both depend on `messages`, but never on each other
+- **`rustiq-messages`**: All types are `pub` - this is the contract between frontend and backend. Zero external dependencies.
+- **`rustiq-engine`**: Only exposes `Engine` struct. All RustRadio implementation details (graphs, blocks, streams) are private.
+- **`rustiq-ui`**: Only exposes the `run()` function. Internals are private.
+- **`rustiq-engine` and `rustiq-ui` both depend on `rustiq-messages`, but never on each other**. The workspace structure enforces this at compile time.
+
+### Import Paths
+
+The workspace uses crate names in import statements:
+
+```rust
+// In rustiq-engine or rustiq-ui
+use rustiq_messages::{Command, Event, Hertz, SourceConfig};
+
+// In rustiq binary
+use rustiq_engine::Engine;
+use rustiq_messages::{Command, Hertz, SourceConfig};
+rustiq_ui::run(event_rx, cmd_tx)?;
+```
 
 See [ENGINE_ARCHITECTURE.md](ENGINE_ARCHITECTURE.md) for detailed engine implementation using RustRadio.
 
@@ -154,16 +180,16 @@ enum Event {
 
 ## Testing Strategy
 
-### Boundary Tests (`tests/` directory)
+### Integration Tests (crate-specific `tests/` directories)
 
-Primary testing approach - test at module boundaries through public APIs:
+Primary testing approach - test at crate boundaries through public APIs:
 
-- **Engine tests**: Construct `Engine` via public API, spawn in thread, verify Events received on flume channel
+- **Engine tests** (`rustiq-engine/tests/`): Construct `Engine` via public API, spawn in thread, verify Events received on flume channel
   - Use RustRadio's `SignalSource` (pure tones) for predictable FFT output
   - Validate SpectrumData events match expected frequency peaks
   - Tests interact only through the public boundary (Commands in, Events out)
 
-- **UI tests** (future): Inject Events via mock channel, verify UI state/snapshots via egui_kittest or similar
+- **UI tests** (future, `rustiq-ui/tests/`): Inject Events via mock channel, verify UI state/snapshots via egui_kittest or similar
   - Tests interact only through the UI's event consumer boundary
 
 ### Signal Sources for Testing

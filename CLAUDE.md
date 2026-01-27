@@ -22,13 +22,19 @@ This project uses trunk-based development. Always work on a feature branch and s
 
 ## Architecture
 
-The application has three main modules with strict boundaries:
+The application uses a **Cargo workspace** with four crates:
 
-- **`messages`** - Public types (Command, Event, EngineState) forming the contract between frontend and backend
-- **`engine`** - Backend DSP processing (rustradio pipeline, RTL-SDR interface, demodulators, FFT). Only exposes constructor and channel handles.
-- **`ui`** - Frontend (egui GUI, cpal audio playback). Only exposes app entry point.
+- **`rustiq-messages`** - Shared protocol types (Command, Event, EngineState) forming the contract between frontend and backend. Zero external dependencies.
+- **`rustiq-engine`** - Backend DSP processing library (rustradio pipeline, RTL-SDR interface, demodulators, FFT). Only exposes `Engine` struct with constructor and `run()` method.
+- **`rustiq-ui`** - Frontend egui application library. Only exposes `run()` function as entry point.
+- **`rustiq`** - Main binary crate that integrates all workspace members.
 
-**Critical rule**: `engine` and `ui` both depend on `messages`, but never on each other.
+**Critical rule**: `rustiq-engine` and `rustiq-ui` both depend on `rustiq-messages`, but never on each other. The workspace structure enforces this at compile time.
+
+**Import paths**: Use workspace crate names in imports:
+- `use rustiq_messages::{Command, Event, Hertz, SourceConfig};`
+- `use rustiq_engine::Engine;`
+- `rustiq_ui::run(event_rx, cmd_tx)?;`
 
 Communication between engine and UI uses two unidirectional flume channels (Commands down, Events up). Backend sends a `StateSnapshot` on connection, then incremental events. No request/response pattern.
 
@@ -36,7 +42,7 @@ Audio samples flow through the protocol layer as `AudioChunk` events - cpal live
 
 ## Testing Strategy
 
-- **Boundary tests** (`tests/` directory): Mock SDR input for engine tests, mock channels for UI tests
+- **Integration tests**: Each library crate has its own `tests/` directory (e.g., `rustiq-engine/tests/engine_test.rs`) for testing public APIs
 - **Unit tests** (inline `#[cfg(test)]`): Only for complex DSP logic
 
 See docs/ARCHITECTURE.md for detailed design decisions.
