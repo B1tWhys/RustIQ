@@ -2,8 +2,8 @@ use flume;
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
-use rustiq::engine::Engine;
-use rustiq::messages::{Command, Event, Hertz, SourceConfig};
+use rustiq_engine::Engine;
+use rustiq_messages::{Command, Event, Hertz, SourceConfig};
 
 // Test helpers to reduce boilerplate
 
