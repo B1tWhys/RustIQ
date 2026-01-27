@@ -13,7 +13,7 @@ use std::cell::Cell;
 /// the texture as uploaded even with only a `&` reference.
 pub(super) struct WaterfallTexture {
     pub image: ColorImage,
-    pub needs_gpu_upload: Cell<bool>,
+    needs_gpu_upload: Cell<bool>,
 }
 
 impl WaterfallTexture {

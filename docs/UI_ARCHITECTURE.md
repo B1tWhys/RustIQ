@@ -228,8 +228,7 @@ pub struct RustIqApp {
     /// Receiver for events from engine
     event_rx: flume::Receiver<Event>,
 
-    /// Sender for commands to engine (unused in v1.0)
-    #[allow(dead_code)]
+    /// Sender for commands to engine
     cmd_tx: flume::Sender<Command>,
 
     /// Local application state

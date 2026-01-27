@@ -1,5 +1,5 @@
+use rustiq::engine::Engine;
 use rustiq::{
-    engine::Engine,
     messages::{Command, Hertz, SourceConfig},
     ui,
 };

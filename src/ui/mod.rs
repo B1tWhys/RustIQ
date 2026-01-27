@@ -10,8 +10,7 @@ pub struct RustIqApp {
     event_rx: flume::Receiver<Event>,
 
     /// Sender for commands to engine (unused in v1.0)
-    #[allow(dead_code)]
-    cmd_tx: flume::Sender<Command>,
+    _cmd_tx: flume::Sender<Command>,
 
     /// Local application state
     state: UiState,
@@ -21,7 +20,7 @@ impl RustIqApp {
     fn new(event_rx: flume::Receiver<Event>, cmd_tx: flume::Sender<Command>) -> Self {
         Self {
             event_rx,
-            cmd_tx,
+            _cmd_tx: cmd_tx,
             state: UiState::new(),
         }
     }
@@ -38,8 +37,8 @@ impl eframe::App for RustIqApp {
         ctx.request_repaint();
 
         // 3. Render UI
-        let state = &mut self.state;
         eframe::egui::CentralPanel::default().show(ctx, |ui| {
+            let state = &mut self.state;
             if let Some(engine_state) = &state.engine_state {
                 // Display status
                 ui.label(format!(
