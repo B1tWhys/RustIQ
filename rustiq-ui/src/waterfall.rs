@@ -1,4 +1,4 @@
-use crate::ui::state::UiState;
+use super::state::UiState;
 use eframe::egui::{TextureOptions, Ui};
 
 /// Renders the waterfall display using pre-computed pixel data from UiState.

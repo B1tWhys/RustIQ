@@ -1,6 +1,6 @@
 use eframe::egui::{Color32, ColorImage, TextureHandle};
 
-use crate::messages::{Decibels, EngineState, Event};
+use rustiq_messages::{Decibels, EngineState, Event};
 use std::cell::Cell;
 
 /// Encapsulates the waterfall texture and GPU upload state.
