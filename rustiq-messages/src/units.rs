@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+
 /// Frequency in Hertz.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Hertz(pub u64);
@@ -63,6 +65,10 @@ impl Decibels {
 
     pub const fn as_db(self) -> f32 {
         self.0
+    }
+
+    pub fn total_cmp(self, other: Decibels) -> Ordering {
+        self.0.total_cmp(&other.0)
     }
 }
 

@@ -40,20 +40,7 @@ impl eframe::App for RustIqApp {
         eframe::egui::CentralPanel::default().show(ctx, |ui| {
             let state = &mut self.state;
             if let Some(engine_state) = &state.engine_state {
-                // Display status
-                ui.label(format!(
-                    "Center: {} | Rate: {} | FFT: {} | DB Range: {} to {}",
-                    engine_state.center_frequency,
-                    engine_state.sample_rate,
-                    engine_state.fft_size,
-                    state.min_db.unwrap_or_default(),
-                    state.max_db.unwrap_or_default()
-                ));
-
-                ui.separator();
-
-                // Render waterfall
-                waterfall::render(ui, state);
+                ui.add(&mut state.waterfall);
             } else {
                 ui.centered_and_justified(|ui| {
                     ui.label("Waiting for engine connection...");

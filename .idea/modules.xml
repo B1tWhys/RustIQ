@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/rustiq.iml" filepath="$PROJECT_DIR$/.idea/rustiq.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/RustIQ.iml" filepath="$PROJECT_DIR$/.idea/RustIQ.iml" />
     </modules>
   </component>
 </project>
