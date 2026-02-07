@@ -1,0 +1,11 @@
+[package]
+name = "rustiq"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+rustiq-messages = { path = "../rustiq-messages" }
+rustiq-engine = { path = "../rustiq-engine" }
+rustiq-ui = { path = "../rustiq-ui" }
+flume = "0.11"
+anyhow = "1.0"

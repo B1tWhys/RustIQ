@@ -7,7 +7,7 @@ use rustradio::graph::{CancellationToken, Graph, GraphRunner};
 use std::thread;
 use std::time::Duration;
 
-use crate::messages::{Command, EngineState, Event, Hertz, SourceConfig};
+use rustiq_messages::{Command, EngineState, Event, Hertz, SourceConfig};
 
 /// The SDR engine backend.
 /// Owns the rustradio graph and processes commands from the UI.

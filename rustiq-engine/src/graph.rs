@@ -6,7 +6,7 @@ use rustradio::blocks::{FftStream, FileSource, Map, SignalSourceComplex};
 use rustradio::graph::{Graph, GraphRunner};
 
 use super::sinks::SpectrumSink;
-use crate::messages::{Event, SourceConfig};
+use rustiq_messages::{Event, SourceConfig};
 
 /// Build the DSP graph for the engine.
 /// Returns (Graph, sample_rate_hz).

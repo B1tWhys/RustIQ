@@ -3,7 +3,7 @@ use rustradio::block::{Block, BlockRet};
 use rustradio::stream::ReadStream;
 use rustradio::{Error, rustradio_macros};
 
-use crate::messages::Event;
+use rustiq_messages::Event;
 
 /// A sink block that consumes f32 spectrum data and sends it via flume channel.
 #[derive(rustradio_macros::Block)]

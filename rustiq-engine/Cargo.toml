@@ -1,0 +1,14 @@
+[package]
+name = "rustiq-engine"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+rustiq-messages = { path = "../rustiq-messages" }
+anyhow = "1.0"
+flume = "0.11"
+rustradio = "0.15"
+num-complex = "0.4"
+
+[dev-dependencies]
+tempfile = "3.15"

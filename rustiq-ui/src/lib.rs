@@ -1,7 +1,7 @@
 mod state;
 mod waterfall;
 
-use crate::messages::{Command, Event};
+use rustiq_messages::{Command, Event};
 use state::UiState;
 
 /// Main application struct implementing the egui App trait.
@@ -10,8 +10,7 @@ pub struct RustIqApp {
     event_rx: flume::Receiver<Event>,
 
     /// Sender for commands to engine (unused in v1.0)
-    #[allow(dead_code)]
-    cmd_tx: flume::Sender<Command>,
+    _cmd_tx: flume::Sender<Command>,
 
     /// Local application state
     state: UiState,
@@ -21,7 +20,7 @@ impl RustIqApp {
     fn new(event_rx: flume::Receiver<Event>, cmd_tx: flume::Sender<Command>) -> Self {
         Self {
             event_rx,
-            cmd_tx,
+            _cmd_tx: cmd_tx,
             state: UiState::new(),
         }
     }
@@ -29,33 +28,19 @@ impl RustIqApp {
 
 impl eframe::App for RustIqApp {
     fn update(&mut self, ctx: &eframe::egui::Context, _frame: &mut eframe::Frame) {
-        // 1. Process all pending events (non-blocking)
+        // 1. Pull exactly ONE event per frame (if available)
         if let Ok(event) = self.event_rx.try_recv() {
             self.state.handle_event(event);
-
-            // Rate-limit repaints to 60 FPS when streaming, slow down when idle
-            ctx.request_repaint_after(std::time::Duration::from_millis(16));
-        } else {
-            ctx.request_repaint_after(std::time::Duration::from_millis(100));
         }
+
+        // Always request continuous repainting for smooth 60 FPS
+        ctx.request_repaint();
 
         // 3. Render UI
         eframe::egui::CentralPanel::default().show(ctx, |ui| {
-            if let Some(engine_state) = &self.state.engine_state {
-                // Display status
-                ui.label(format!(
-                    "Center: {} | Rate: {} | FFT: {} | DB Range: {} to {}",
-                    engine_state.center_frequency,
-                    engine_state.sample_rate,
-                    engine_state.fft_size,
-                    self.state.min_db.unwrap_or_default(),
-                    self.state.max_db.unwrap_or_default()
-                ));
-
-                ui.separator();
-
-                // Render waterfall
-                waterfall::render(ui, &self.state);
+            let state = &mut self.state;
+            if let Some(_engine_state) = &state.engine_state {
+                ui.add(&mut state.waterfall);
             } else {
                 ui.centered_and_justified(|ui| {
                     ui.label("Waiting for engine connection...");

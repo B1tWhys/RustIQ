@@ -1,8 +1,5 @@
-use rustiq::{
-    engine::Engine,
-    messages::{Command, Hertz, SourceConfig},
-    ui,
-};
+use rustiq_engine::Engine;
+use rustiq_messages::{Command, Hertz, SourceConfig};
 use std::path::PathBuf;
 
 fn main() -> anyhow::Result<()> {
@@ -26,7 +23,7 @@ fn main() -> anyhow::Result<()> {
     });
 
     // Run UI on main thread (blocking)
-    ui::run(event_rx, cmd_tx.clone())?;
+    rustiq_ui::run(event_rx, cmd_tx.clone())?;
 
     // UI has exited - send stop command to engine
     let _ = cmd_tx.send(Command::Stop);
