@@ -2,14 +2,16 @@ use eframe::egui::{ColorImage, Image, Response, TextureHandle, TextureOptions, U
 use eframe::epaint::Color32;
 use rustiq_messages::Decibels;
 
-/// Encapsulates the waterfall texture and GPU upload state.
+/// Waterfall display widget that renders a scrolling spectrogram.
 ///
-/// The image pixels are updated in the event handler when new spectrum data arrives.
-/// The `needs_gpu_upload` flag tracks whether the texture needs to be re-uploaded to
-/// the GPU, avoiding redundant uploads when rendering multiple frames without new data.
+/// This widget implements the egui `Widget` trait for `&mut Waterfall`, allowing it
+/// to be used with `ui.add(&mut waterfall)`. It manages its own texture state and
+/// handles GPU uploads efficiently.
 ///
-/// We use `Cell<bool>` for interior mutability, allowing the render function to mark
-/// the texture as uploaded even with only a `&` reference.
+/// The image pixels are updated via `insert_spectrum_line()` when new spectrum data
+/// arrives. The `needs_gpu_upload` flag tracks whether the texture needs to be
+/// re-uploaded to the GPU, avoiding redundant uploads when rendering multiple frames
+/// without new data.
 pub struct Waterfall {
     image: ColorImage,
     needs_gpu_upload: bool,
@@ -20,7 +22,7 @@ pub struct Waterfall {
     /// Min value in the waterfall. Used to scale the colors
     min_px_val: Option<Decibels>,
     /// Max value in the waterfall. Used to scale the colors
-    max_px_val: Option<Decibels>
+    max_px_val: Option<Decibels>,
 }
 
 impl Waterfall {
@@ -31,14 +33,13 @@ impl Waterfall {
             waterfall_texture_handle: None,
             min_px_val: None,
             max_px_val: None,
-
         }
     }
 
     /// Insert new line of pixel data at the top of the waterfall
     pub fn insert_spectrum_line(&mut self, data: &[f32]) {
         if data.is_empty() {
-            return
+            return;
         };
 
         let img_width = data.len();
@@ -49,7 +50,8 @@ impl Waterfall {
         let decibels: Vec<Decibels> = data.iter().map(|&f| Decibels::from_linear(f)).collect();
         self.update_min_max_values(&decibels);
 
-        let new_pixels: Vec<Color32> = decibels.iter()
+        let new_pixels: Vec<Color32> = decibels
+            .iter()
             .map(|&db| self.decibels_to_color(db))
             .collect();
 
@@ -75,7 +77,7 @@ impl Waterfall {
         Color32::from_gray((scaled * 255.0) as u8)
     }
 
-    fn update_min_max_values(&mut self, decibels: &Vec<Decibels>) {
+    fn update_min_max_values(&mut self, decibels: &[Decibels]) {
         assert!(!decibels.is_empty());
         let min_new = decibels.iter().min_by(|&a, &b| a.total_cmp(*b)).unwrap();
         let max_new = decibels.iter().max_by(|&a, &b| a.total_cmp(*b)).unwrap();
@@ -93,10 +95,10 @@ impl Waterfall {
 }
 
 impl Widget for &mut Waterfall {
-    /// Renders the waterfall display using pre-computed pixel data from UiState.
+    /// Renders the waterfall display.
     ///
-    /// The pixel data is pre-computed in the event handler (not during rendering),
-    /// so this function only needs to upload the texture when new data is available.
+    /// Pixel data is pre-computed in `insert_spectrum_line()` (not during rendering),
+    /// so this function only uploads the texture to the GPU when new data is available.
     /// The texture handle is cached to avoid re-uploading on every frame.
     fn ui(self, ui: &mut Ui) -> Response {
         // Check if we have any image data
@@ -108,11 +110,9 @@ impl Widget for &mut Waterfall {
 
         // Only upload texture if we have new data
         if self.needs_gpu_upload {
-            let texture = ui.ctx().load_texture(
-                "waterfall",
-                self.image.clone(),
-                TextureOptions::LINEAR,
-            );
+            let texture =
+                ui.ctx()
+                    .load_texture("waterfall", self.image.clone(), TextureOptions::LINEAR);
 
             // Cache the texture handle for reuse
             self.waterfall_texture_handle = Some(texture);

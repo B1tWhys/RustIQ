@@ -39,7 +39,7 @@ impl eframe::App for RustIqApp {
         // 3. Render UI
         eframe::egui::CentralPanel::default().show(ctx, |ui| {
             let state = &mut self.state;
-            if let Some(engine_state) = &state.engine_state {
+            if let Some(_engine_state) = &state.engine_state {
                 ui.add(&mut state.waterfall);
             } else {
                 ui.centered_and_justified(|ui| {

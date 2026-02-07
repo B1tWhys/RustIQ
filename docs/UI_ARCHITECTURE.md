@@ -106,16 +106,16 @@ fn main() -> anyhow::Result<()> {
 ## Module Structure
 
 ```
-src/ui/
-├── mod.rs           # Public API: run() function, RustIqApp struct
+rustiq-ui/src/
+├── lib.rs           # Public API: run() function, RustIqApp struct
 ├── state.rs         # UiState struct - local state management
-└── waterfall.rs     # Waterfall rendering function
+└── waterfall.rs     # Waterfall widget (implements egui Widget trait)
 ```
 
 ### Visibility
 
-- **Public**: `ui::run()` function only
-- **Private**: All internal types (RustIqApp, UiState, waterfall rendering)
+- **Public**: `rustiq_ui::run()` function only
+- **Private**: All internal types (RustIqApp, UiState, Waterfall widget)
 
 ## Data Flow
 
@@ -162,30 +162,25 @@ Engine Thread                Main Thread (UI)
 ### UiState Structure
 
 ```rust
-// src/ui/state.rs
+// rustiq-ui/src/state.rs
 
-use std::collections::VecDeque;
-use crate::messages::{Event, EngineState};
+use rustiq_messages::{EngineState, Event};
+use crate::waterfall::Waterfall;
 
+/// Local UI state derived from engine events.
 pub(super) struct UiState {
     /// Current engine state (from StateSnapshot)
     pub engine_state: Option<EngineState>,
 
-    /// Waterfall history buffer
-    /// Each entry is one FFT frame (Vec<f32>)
-    /// Newest data at index 0, oldest at the end
-    pub waterfall_history: VecDeque<Vec<f32>>,
-
-    /// Maximum number of waterfall lines to keep
-    pub waterfall_max_lines: usize,
+    /// Waterfall widget state
+    pub waterfall: Waterfall,
 }
 
 impl UiState {
     pub fn new() -> Self {
         Self {
             engine_state: None,
-            waterfall_history: VecDeque::with_capacity(512),
-            waterfall_max_lines: 512, // ~10 seconds at 50 FPS
+            waterfall: Waterfall::new(),
         }
     }
 
@@ -195,18 +190,14 @@ impl UiState {
                 self.engine_state = Some(state);
             }
             Event::SpectrumData(data) => {
-                // Add new data at front
-                self.waterfall_history.push_front(data);
-
-                // Trim old data from back
-                while self.waterfall_history.len() > self.waterfall_max_lines {
-                    self.waterfall_history.pop_back();
-                }
+                self.waterfall.insert_spectrum_line(&data);
             }
         }
     }
 }
 ```
+
+The `Waterfall` widget encapsulates all waterfall-specific state including the pixel buffer, texture handle, and dynamic dB range scaling.
 
 ### State Update Timing
 
@@ -220,15 +211,15 @@ impl UiState {
 ### RustIqApp (Main Application)
 
 ```rust
-// src/ui/mod.rs
+// rustiq-ui/src/lib.rs
 
-use crate::messages::{Command, Event};
+use rustiq_messages::{Command, Event};
 
 pub struct RustIqApp {
     /// Receiver for events from engine
     event_rx: flume::Receiver<Event>,
 
-    /// Sender for commands to engine
+    /// Sender for commands to engine (unused in v1.0)
     cmd_tx: flume::Sender<Command>,
 
     /// Local application state
@@ -260,19 +251,9 @@ impl eframe::App for RustIqApp {
 
         // 3. Render UI
         egui::CentralPanel::default().show(ctx, |ui| {
-            if let Some(engine_state) = &self.state.engine_state {
-                // Display status
-                ui.label(format!(
-                    "Center: {} Hz | Rate: {} Hz | FFT: {}",
-                    engine_state.center_frequency,
-                    engine_state.sample_rate,
-                    engine_state.fft_size
-                ));
-
-                ui.separator();
-
-                // Render waterfall
-                waterfall::render(ui, &self.state.waterfall_history, engine_state);
+            if let Some(_engine_state) = &self.state.engine_state {
+                // Render waterfall widget (implements egui Widget trait)
+                ui.add(&mut self.state.waterfall);
             } else {
                 ui.centered_and_justified(|ui| {
                     ui.label("Waiting for engine connection...");
@@ -311,72 +292,83 @@ pub fn run(
 
 ### Waterfall Widget
 
+The `Waterfall` struct implements the egui `Widget` trait, encapsulating all waterfall-specific state and rendering logic:
+
 ```rust
-// src/ui/waterfall.rs
+// rustiq-ui/src/waterfall.rs
 
-use egui::{Color32, ColorImage, TextureOptions, Ui};
-use std::collections::VecDeque;
-use crate::messages::EngineState;
+use eframe::egui::{ColorImage, Image, Response, TextureHandle, TextureOptions, Ui, Widget};
+use eframe::epaint::Color32;
+use rustiq_messages::Decibels;
 
-pub(super) fn render(
-    ui: &mut Ui,
-    waterfall_history: &VecDeque<Vec<f32>>,
-    engine_state: &EngineState,
-) {
-    if waterfall_history.is_empty() {
-        ui.label("Waiting for spectrum data...");
-        return;
+/// Waterfall display widget that renders a scrolling spectrogram.
+pub struct Waterfall {
+    image: ColorImage,
+    needs_gpu_upload: bool,
+    waterfall_texture_handle: Option<TextureHandle>,
+    min_px_val: Option<Decibels>,
+    max_px_val: Option<Decibels>,
+}
+
+impl Waterfall {
+    pub fn new() -> Self { /* ... */ }
+
+    /// Insert new line of pixel data at the top of the waterfall
+    pub fn insert_spectrum_line(&mut self, data: &[f32]) {
+        // Convert linear magnitudes to dB, update min/max for dynamic scaling
+        let decibels: Vec<Decibels> = data.iter()
+            .map(|&f| Decibels::from_linear(f))
+            .collect();
+        self.update_min_max_values(&decibels);
+
+        // Convert to pixel colors and prepend to image buffer
+        let new_pixels: Vec<Color32> = decibels.iter()
+            .map(|&db| self.decibels_to_color(db))
+            .collect();
+        self.image.pixels.extend(new_pixels);
+        self.image.pixels.rotate_right(data.len());
+        self.needs_gpu_upload = true;
     }
 
-    let fft_size = engine_state.fft_size;
-    let num_lines = waterfall_history.len();
+    fn decibels_to_color(&self, decibels: Decibels) -> Color32 {
+        // Scale to [0, 1] using dynamic min/max range, convert to grayscale
+    }
+}
 
-    // Create image buffer
-    let mut pixels = Vec::with_capacity(fft_size * num_lines);
-
-    // Convert spectrum data to pixels
-    for line in waterfall_history.iter() {
-        for &magnitude in line.iter() {
-            // Convert magnitude to color (grayscale)
-            let intensity = magnitude_to_intensity(magnitude);
-            let color = intensity_to_color(intensity);
-            pixels.push(color);
+impl Widget for &mut Waterfall {
+    fn ui(self, ui: &mut Ui) -> Response {
+        if self.image.pixels.is_empty() {
+            ui.label("Waiting for spectrum data...");
+            return ui.response();
         }
+
+        // Only upload texture if we have new data
+        if self.needs_gpu_upload {
+            let texture = ui.ctx().load_texture(
+                "waterfall",
+                self.image.clone(),
+                TextureOptions::LINEAR,
+            );
+            self.waterfall_texture_handle = Some(texture);
+            self.needs_gpu_upload = false;
+        }
+
+        // Display the cached texture
+        if let Some(texture_handle) = &self.waterfall_texture_handle {
+            let available_size = ui.available_size();
+            ui.add(Image::new(texture_handle).fit_to_exact_size(available_size));
+        }
+
+        ui.response()
     }
-
-    // Create texture
-    let image = ColorImage {
-        size: [fft_size, num_lines],
-        pixels,
-    };
-
-    let texture = ui.ctx().load_texture(
-        "waterfall",
-        image,
-        TextureOptions::LINEAR,
-    );
-
-    // Display image (stretched to fill available space)
-    let available_size = ui.available_size();
-    ui.image(&texture).fit_to_exact_size(available_size);
-}
-
-fn magnitude_to_intensity(magnitude: f32) -> f32 {
-    // Convert linear magnitude to dB and normalize
-    // Typical range: -80 dB to 0 dB
-    let db = 20.0 * magnitude.log10();
-    let min_db = -80.0;
-    let max_db = 0.0;
-
-    ((db - min_db) / (max_db - min_db)).clamp(0.0, 1.0)
-}
-
-fn intensity_to_color(intensity: f32) -> Color32 {
-    // Simple grayscale mapping
-    let value = (intensity * 255.0) as u8;
-    Color32::from_gray(value)
 }
 ```
+
+Key improvements in this design:
+- **Self-contained widget**: All waterfall state lives in the `Waterfall` struct
+- **Dynamic scaling**: Min/max dB values tracked automatically for color normalization
+- **Efficient GPU uploads**: Texture only re-uploaded when `needs_gpu_upload` is true
+- **egui Widget trait**: Standard widget interface via `ui.add(&mut waterfall)`
 
 ## Event Handling
 
@@ -459,16 +451,15 @@ Uploading texture data to GPU is the main performance cost:
 
 ### Memory Management
 
-**Waterfall history buffer:**
-- Use `VecDeque` for efficient push_front/pop_back
-- Pre-allocate capacity (512 lines) to avoid reallocations
-- Limit size to prevent unbounded memory growth
-- Example memory usage: 4096 bins × 512 lines × 4 bytes ≈ 8 MB
+**Waterfall pixel buffer:**
+- Stored as `ColorImage` in the `Waterfall` widget
+- New lines prepended via rotate_right pattern
+- Memory usage: `fft_size * num_lines * 4 bytes` (RGBA pixels)
+- Example: 4096 bins × 512 lines × 4 bytes ≈ 8 MB
 
-**FFT data:**
-- Each line is `Vec<f32>` with length = FFT size
-- Memory per line: `fft_size * 4 bytes`
-- 4096-bin FFT = 16 KB per frame
+**Dynamic dB range:**
+- Min/max values tracked automatically as data arrives
+- Used to scale spectrum values to grayscale colors
 
 ### Frame Rate vs Event Rate
 
@@ -481,36 +472,36 @@ The UI can comfortably handle 60+ FFT frames per second.
 
 ## Implementation Checklist
 
-### Phase 1: Basic Structure
-- [ ] Create `src/ui/mod.rs` with public `run()` function
-- [ ] Implement `RustIqApp` struct with `eframe::App` trait
-- [ ] Create `UiState` struct in `src/ui/state.rs`
-- [ ] Implement event polling loop in `update()`
+### Phase 1: Basic Structure ✓
+- [x] Create `rustiq-ui/src/lib.rs` with public `run()` function
+- [x] Implement `RustIqApp` struct with `eframe::App` trait
+- [x] Create `UiState` struct in `rustiq-ui/src/state.rs`
+- [x] Implement event polling loop in `update()`
 
-### Phase 2: Waterfall Display
-- [ ] Create `src/ui/waterfall.rs`
-- [ ] Implement `render()` function
-- [ ] Convert spectrum data to texture
-- [ ] Implement magnitude-to-grayscale conversion
-- [ ] Display texture in UI
+### Phase 2: Waterfall Display ✓
+- [x] Create `rustiq-ui/src/waterfall.rs` with `Waterfall` widget
+- [x] Implement `Widget` trait for waterfall rendering
+- [x] Convert spectrum data to texture with dynamic dB scaling
+- [x] Implement magnitude-to-grayscale conversion
+- [x] Display texture in UI
 
-### Phase 3: Integration
-- [ ] Update `main.rs` to call `ui::run()`
-- [ ] Test with real engine output
-- [ ] Verify waterfall displays 10 kHz spike from `SignalSource`
+### Phase 3: Integration ✓
+- [x] Update `main.rs` to call `rustiq_ui::run()`
+- [x] Test with real engine output
+- [x] Verify waterfall displays 10 kHz spike from `SignalSource`
 
 ### Phase 4: Polish
 - [ ] Add status display (frequency, sample rate, FFT size)
-- [ ] Add "waiting for connection" message when no events yet
+- [x] Add "waiting for connection" message when no events yet
 - [ ] Tune waterfall history buffer size if needed
 
 ## Key Takeaways
 
 1. **Immediate mode UI simplifies state management** - no widget tree, just render from state
 2. **Non-blocking event polling keeps UI responsive** - never blocks main thread
-3. **VecDeque for waterfall history** - efficient FIFO buffer with bounded size
+3. **Self-contained widgets** - `Waterfall` widget owns its state, implements egui `Widget` trait
 4. **Texture-based rendering** - convert spectrum data to GPU texture for display
-5. **Public API is minimal** - only `ui::run()` exposed, all else private
+5. **Public API is minimal** - only `rustiq_ui::run()` exposed, all else private
 6. **Testing is manual for V1.0** - visual verification of waterfall display
 
 This architecture maintains clean separation from the engine while providing a responsive real-time display for SDR visualization.

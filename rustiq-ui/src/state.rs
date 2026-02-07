@@ -1,7 +1,5 @@
-use eframe::egui::{Color32, ColorImage, TextureHandle};
-
-use rustiq_messages::{Decibels, EngineState, Event};
 use crate::waterfall::Waterfall;
+use rustiq_messages::{EngineState, Event};
 
 /// Local UI state derived from engine events.
 pub(super) struct UiState {
