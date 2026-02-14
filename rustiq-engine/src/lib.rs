@@ -3,20 +3,19 @@ mod sinks;
 
 use anyhow::Result;
 use flume::{Receiver, Sender};
-use rustradio::graph::{CancellationToken, Graph, GraphRunner};
+use log::debug;
+use rustiq_messages::{Command, EngineState, Event, Hertz, SourceConfig};
+use rustradio::graph::{CancellationToken, GraphRunner};
 use std::thread;
 use std::time::Duration;
-
-use rustiq_messages::{Command, EngineState, Event, Hertz, SourceConfig};
 
 /// The SDR engine backend.
 /// Owns the rustradio graph and processes commands from the UI.
 pub struct Engine {
-    graph: Graph,
     cmd_rx: Receiver<Command>,
     event_tx: Sender<Event>,
-    cancellation_token: CancellationToken,
-    sample_rate: Hertz,
+    current_config: SourceConfig,
+    should_exit: bool,
 }
 
 impl Engine {
@@ -26,58 +25,73 @@ impl Engine {
         event_tx: Sender<Event>,
         source_config: SourceConfig,
     ) -> Self {
-        let (graph, sample_rate_hz) = graph::build_graph(event_tx.clone(), source_config);
-        let token = graph.cancel_token();
+        debug!("Constructing a new engine");
         Self {
-            graph,
             cmd_rx,
             event_tx,
-            cancellation_token: token,
-            sample_rate: Hertz(sample_rate_hz),
+            current_config: source_config,
+            should_exit: false,
         }
     }
 
     /// Run the engine (blocking).
-    /// Sends initial StateSnapshot, then runs the DSP graph on a separate thread
-    /// while processing commands on the main thread.
-    pub fn run(self) -> Result<()> {
-        // Send initial state snapshot
-        let initial_state = EngineState {
-            center_frequency: Hertz(0),
-            sample_rate: self.sample_rate,
-            fft_size: 4096,
-        };
-        self.event_tx.send(Event::StateSnapshot(initial_state))?;
+    /// Runs in a loop that can restart the DSP graph when source changes.
+    pub fn run(mut self) -> Result<()> {
+        while !self.should_exit {
+            self.run_graph_iteration()?;
+        }
+        Ok(())
+    }
 
-        // Spawn graph on separate thread
-        let mut graph = self.graph;
+    fn run_graph_iteration(&mut self) -> Result<()> {
+        let (graph, sample_rate_hz) =
+            graph::build_graph(self.event_tx.clone(), self.current_config.clone());
+        let cancel_token = graph.cancel_token();
+
+        let state = EngineState {
+            center_frequency: Hertz(0),
+            sample_rate: Hertz(sample_rate_hz),
+            fft_size: 4096,
+            source_config: self.current_config.clone(),
+        };
+        self.event_tx.send(Event::StateSnapshot(state))?;
+
+        let mut graph = graph;
         let graph_handle = thread::spawn(move || graph.run());
 
-        // Command processing loop on main thread
+        self.process_commands(&cancel_token, &graph_handle);
+
+        let _ = graph_handle.join();
+        Ok(())
+    }
+
+    fn process_commands(
+        &mut self,
+        cancel_token: &CancellationToken,
+        graph_handle: &thread::JoinHandle<std::result::Result<(), rustradio::Error>>,
+    ) {
         loop {
-            // Poll for commands with timeout to check if graph thread is still alive
-            match self.cmd_rx.recv_timeout(Duration::from_millis(100)) {
+            let msg = self.cmd_rx.recv_timeout(Duration::from_millis(100));
+            debug!("Engine received message: {:?}", msg);
+
+            match msg {
                 Ok(Command::Stop) | Err(flume::RecvTimeoutError::Disconnected) => {
-                    // Stop command received or channel closed - cancel the graph
-                    self.cancellation_token.cancel();
+                    self.should_exit = true;
+                    cancel_token.cancel();
+                    break;
+                }
+                Ok(Command::ChangeSource(new_config)) => {
+                    self.current_config = new_config;
+                    cancel_token.cancel();
                     break;
                 }
                 Err(flume::RecvTimeoutError::Timeout) => {
-                    // Check if graph thread has finished
                     if graph_handle.is_finished() {
+                        self.should_exit = true;
                         break;
                     }
-                    // Continue waiting
                 }
             }
         }
-
-        // Wait for graph thread to finish and return its result
-        let graph_result = graph_handle
-            .join()
-            .map_err(|_| anyhow::anyhow!("Graph thread panicked"))?;
-
-        // Convert rustradio::Error to anyhow::Error
-        graph_result.map_err(|e| anyhow::anyhow!("Graph error: {}", e))
     }
 }

@@ -1,3 +1,4 @@
+mod control_panel;
 mod state;
 mod waterfall;
 
@@ -9,9 +10,6 @@ pub struct RustIqApp {
     /// Receiver for events from engine
     event_rx: flume::Receiver<Event>,
 
-    /// Sender for commands to engine (unused in v1.0)
-    _cmd_tx: flume::Sender<Command>,
-
     /// Local application state
     state: UiState,
 }
@@ -20,15 +18,14 @@ impl RustIqApp {
     fn new(event_rx: flume::Receiver<Event>, cmd_tx: flume::Sender<Command>) -> Self {
         Self {
             event_rx,
-            _cmd_tx: cmd_tx,
-            state: UiState::new(),
+            state: UiState::new(cmd_tx),
         }
     }
 }
 
 impl eframe::App for RustIqApp {
     fn update(&mut self, ctx: &eframe::egui::Context, _frame: &mut eframe::Frame) {
-        // 1. Pull exactly ONE event per frame (if available)
+        // Pull events from engine
         if let Ok(event) = self.event_rx.try_recv() {
             self.state.handle_event(event);
         }
@@ -36,11 +33,17 @@ impl eframe::App for RustIqApp {
         // Always request continuous repainting for smooth 60 FPS
         ctx.request_repaint();
 
-        // 3. Render UI
+        // Right side panel for controls
+        eframe::egui::SidePanel::right("control_panel")
+            .default_width(250.0)
+            .show(ctx, |ui| {
+                ui.add(&mut self.state.control_panel);
+            });
+
+        // Central panel for waterfall
         eframe::egui::CentralPanel::default().show(ctx, |ui| {
-            let state = &mut self.state;
-            if let Some(_engine_state) = &state.engine_state {
-                ui.add(&mut state.waterfall);
+            if self.state.engine_state.is_some() {
+                ui.add(&mut self.state.waterfall);
             } else {
                 ui.centered_and_justified(|ui| {
                     ui.label("Waiting for engine connection...");

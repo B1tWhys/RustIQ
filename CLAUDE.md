@@ -40,6 +40,15 @@ Communication between engine and UI uses two unidirectional flume channels (Comm
 
 Audio samples flow through the protocol layer as `AudioChunk` events - cpal lives in the frontend, not the backend.
 
+## Logging
+
+Use the `log` crate facade (`debug!`, `info!`, `warn!`, `error!`) for all logging. The binary crate initializes `env_logger`, controlled at runtime via the `RUST_LOG` environment variable:
+
+```bash
+RUST_LOG=debug cargo run --release   # All debug+ messages
+RUST_LOG=rustiq_engine=debug cargo run --release  # Filter to one crate
+```
+
 ## Testing Strategy
 
 - **Integration tests**: Each library crate has its own `tests/` directory (e.g., `rustiq-engine/tests/engine_test.rs`) for testing public APIs

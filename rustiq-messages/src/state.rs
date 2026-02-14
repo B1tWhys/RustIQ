@@ -1,4 +1,4 @@
-use super::{Decibels, Hertz};
+use crate::{Decibels, Hertz};
 use std::path::PathBuf;
 
 /// Current state of the SDR engine.
@@ -10,6 +10,8 @@ pub struct EngineState {
     pub sample_rate: Hertz,
     /// FFT size (number of bins)
     pub fft_size: usize,
+    /// Current source configuration
+    pub source_config: SourceConfig,
 }
 
 /// Configuration for the SDR signal source.

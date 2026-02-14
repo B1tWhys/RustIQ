@@ -3,7 +3,7 @@ use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
 use rustiq_engine::Engine;
-use rustiq_messages::{Command, Event, Hertz, SourceConfig};
+use rustiq_messages::{Command, Decibels, Event, Hertz, SourceConfig};
 
 // Test helpers to reduce boilerplate
 
@@ -139,4 +139,52 @@ fn test_fft_shows_peak_at_10khz() {
     );
 
     teardown_engine(cmd_tx, handle);
+}
+
+#[test]
+fn test_engine_handles_change_source() {
+    let (cmd_tx, event_rx, handle) = setup_engine();
+
+    // Wait for initial StateSnapshot
+    let initial_event = event_rx
+        .recv_timeout(Duration::from_secs(2))
+        .expect("Should receive initial StateSnapshot");
+
+    let initial_freq = match &initial_event {
+        Event::StateSnapshot(state) => match &state.source_config {
+            SourceConfig::SignalGenerator { signal_freq, .. } => *signal_freq,
+            _ => panic!("Expected SignalGenerator config"),
+        },
+        _ => panic!("Expected StateSnapshot"),
+    };
+    assert_eq!(initial_freq, Hertz(10_000));
+
+    // Send ChangeSource with different frequency, then Stop
+    let new_config = SourceConfig::SignalGenerator {
+        sample_rate: Hertz(48_000),
+        signal_freq: Hertz(5_000),
+        amplitude: Decibels(0.0),
+    };
+    cmd_tx.send(Command::ChangeSource(new_config)).unwrap();
+    cmd_tx.send(Command::Stop).unwrap();
+
+    // Wait for engine to finish
+    let _ = handle.join();
+
+    // Drain all events and check for StateSnapshot with updated config
+    let mut received_new_snapshot = false;
+    while let Ok(event) = event_rx.try_recv() {
+        if let Event::StateSnapshot(state) = event {
+            if let SourceConfig::SignalGenerator { signal_freq, .. } = &state.source_config {
+                if *signal_freq == Hertz(5_000) {
+                    received_new_snapshot = true;
+                }
+            }
+        }
+    }
+
+    assert!(
+        received_new_snapshot,
+        "Should receive new StateSnapshot with updated config"
+    );
 }
