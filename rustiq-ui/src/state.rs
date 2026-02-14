@@ -1,7 +1,7 @@
-use flume::Sender;
-
 use crate::control_panel::ControlPanel;
 use crate::waterfall::Waterfall;
+use flume::Sender;
+use log::trace;
 use rustiq_messages::{Command, EngineState, Event};
 
 /// Local UI state derived from engine events.
@@ -26,6 +26,7 @@ impl UiState {
     }
 
     pub fn handle_event(&mut self, event: Event) {
+        trace!("UI received event: {:.50}", format!("{:?}", event));
         match event {
             Event::StateSnapshot(state) => {
                 self.control_panel

@@ -1,11 +1,31 @@
 use rustiq_engine::Engine;
 use rustiq_messages::{Command, Hertz, SourceConfig};
+
+use log::LevelFilter;
+use std::io::Write;
 use std::path::PathBuf;
 
 fn main() -> anyhow::Result<()> {
+    env_logger::builder()
+        .format(|buf, record| {
+            writeln!(
+                buf,
+                "{:<5} - mod path |{}| - target | {} | args: |{}|",
+                record.level(),
+                record.module_path().unwrap_or(""),
+                record.target(),
+                record.args()
+            )
+        })
+        .filter_level(LevelFilter::Debug)
+        .filter_module("tracing::span", LevelFilter::Off)
+        .filter_module("rustiq_engine", LevelFilter::Info)
+        .filter_module("rustiq_ui", LevelFilter::Trace)
+        .init();
+
     // Create flume channels for bidirectional communication
     let (cmd_tx, cmd_rx) = flume::unbounded();
-    let (event_tx, event_rx) = flume::bounded(1); // flume::unbounded();
+    let (event_tx, event_rx) = flume::bounded(1);
 
     // Parse CLI arguments - if a file path is provided, use FileSource
     let source_config = std::env::args()

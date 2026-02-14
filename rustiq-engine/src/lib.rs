@@ -3,11 +3,11 @@ mod sinks;
 
 use anyhow::Result;
 use flume::{Receiver, Sender};
+use log::debug;
+use rustiq_messages::{Command, EngineState, Event, Hertz, SourceConfig};
 use rustradio::graph::{CancellationToken, GraphRunner};
 use std::thread;
 use std::time::Duration;
-
-use rustiq_messages::{Command, EngineState, Event, Hertz, SourceConfig};
 
 /// The SDR engine backend.
 /// Owns the rustradio graph and processes commands from the UI.
@@ -25,6 +25,7 @@ impl Engine {
         event_tx: Sender<Event>,
         source_config: SourceConfig,
     ) -> Self {
+        debug!("Constructing a new engine");
         Self {
             cmd_rx,
             event_tx,
@@ -70,7 +71,10 @@ impl Engine {
         graph_handle: &thread::JoinHandle<std::result::Result<(), rustradio::Error>>,
     ) {
         loop {
-            match self.cmd_rx.recv_timeout(Duration::from_millis(100)) {
+            let msg = self.cmd_rx.recv_timeout(Duration::from_millis(100));
+            debug!("Engine received message: {:?}", msg);
+
+            match msg {
                 Ok(Command::Stop) | Err(flume::RecvTimeoutError::Disconnected) => {
                     self.should_exit = true;
                     cancel_token.cancel();
